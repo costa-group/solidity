@@ -695,16 +695,17 @@ vector<string> CompilerStack::contractNames() const
 	return contractNames;
 }
 
-string const CompilerStack::lastContractName() const
+string const CompilerStack::lastContractName(optional<string> const& _sourceName) const
 {
 	if (m_stackState < AnalysisPerformed)
 		BOOST_THROW_EXCEPTION(CompilerError() << errinfo_comment("Parsing was not successful."));
 	// try to find some user-supplied contract
 	string contractName;
 	for (auto const& it: m_sources)
-		for (ASTPointer<ASTNode> const& node: it.second.ast->nodes())
-			if (auto contract = dynamic_cast<ContractDefinition const*>(node.get()))
-				contractName = contract->fullyQualifiedName();
+		if (!_sourceName.has_value() || (_sourceName.has_value() && it.first == _sourceName.value()))
+			for (ASTPointer<ASTNode> const& node: it.second.ast->nodes())
+				if (auto contract = dynamic_cast<ContractDefinition const*>(node.get()))
+					contractName = contract->fullyQualifiedName();
 	return contractName;
 }
 

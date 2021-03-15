@@ -48,7 +48,7 @@ public:
 	std::string const& source() const;
 	std::size_t lineNumber() const { return m_lineNumber; }
 	std::map<std::string, std::string> const& settings() const { return m_settings; }
-	std::ifstream& stream() { return m_file; }
+	std::ifstream& stream() { return m_filestream; }
 
 	std::string simpleExpectations();
 
@@ -62,7 +62,8 @@ private:
 	std::pair<SourceMap, std::size_t> parseSourcesAndSettingsWithLineNumber(std::istream& _file);
 	static std::string parseSimpleExpectations(std::istream& _file);
 
-	std::ifstream m_file;
+	std::ifstream m_filestream;
+	std::string m_filename;
 	SourceMap m_sources;
 	std::size_t m_lineNumber = 0;
 	std::map<std::string, std::string> m_settings;

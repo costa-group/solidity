@@ -18,24 +18,30 @@
 
 #include <test/TestCaseReader.h>
 
+#include <libsolidity/parsing/Parser.h>
+#include <liblangutil/ErrorReporter.h>
 #include <libsolutil/StringUtils.h>
+#include <libsolutil/CommonIO.h>
 
 #include <boost/algorithm/string.hpp>
 #include <boost/throw_exception.hpp>
+#include <boost/filesystem.hpp>
 
 #include <range/v3/view/map.hpp>
 
 using namespace std;
+using namespace solidity::langutil;
 using namespace solidity::frontend::test;
 
-TestCaseReader::TestCaseReader(string const& _filename):
-	m_file(_filename)
-{
-	if (!m_file)
-		BOOST_THROW_EXCEPTION(runtime_error("Cannot open file: \"" + _filename + "\"."));
-	m_file.exceptions(ios::badbit);
+namespace fs = boost::filesystem;
 
-	tie(m_sources, m_lineNumber) = parseSourcesAndSettingsWithLineNumber(m_file);
+TestCaseReader::TestCaseReader(string const& _filename): m_filestream(_filename), m_filename(_filename)
+{
+	if (!m_filestream)
+		BOOST_THROW_EXCEPTION(runtime_error("Cannot open file: \"" + _filename + "\"."));
+	m_filestream.exceptions(ios::badbit);
+
+	tie(m_sources, m_lineNumber) = parseSourcesAndSettingsWithLineNumber(m_filestream);
 	m_unreadSettings = m_settings;
 }
 
@@ -55,7 +61,7 @@ string const& TestCaseReader::source() const
 
 string TestCaseReader::simpleExpectations()
 {
-	return parseSimpleExpectations(m_file);
+	return parseSimpleExpectations(m_filestream);
 }
 
 bool TestCaseReader::boolSetting(std::string const& _name, bool _defaultValue)
@@ -109,6 +115,7 @@ pair<SourceMap, size_t> TestCaseReader::parseSourcesAndSettingsWithLineNumber(is
 	string currentSource;
 	string line;
 	size_t lineNumber = 1;
+	static string const externalSourceDelimiterStart("==== ExternalSource:");
 	static string const sourceDelimiterStart("==== Source:");
 	static string const sourceDelimiterEnd("====");
 	static string const comment("// ");
@@ -136,6 +143,54 @@ pair<SourceMap, size_t> TestCaseReader::parseSourcesAndSettingsWithLineNumber(is
 				));
 				if (sources.count(currentSourceName))
 					BOOST_THROW_EXCEPTION(runtime_error("Multiple definitions of test source \"" + currentSourceName + "\"."));
+			}
+			else if (boost::algorithm::starts_with(line, externalSourceDelimiterStart) && boost::algorithm::ends_with(line, sourceDelimiterEnd))
+			{
+				string externalSourcePath = boost::trim_copy(line.substr(
+					externalSourceDelimiterStart.size(),
+					line.size() - sourceDelimiterEnd.size() - externalSourceDelimiterStart.size()
+				));
+				string externalSourceName = externalSourcePath;
+
+				// Does the external source define a remapping?
+				size_t remappingPos = externalSourcePath.find('=');
+				if (remappingPos != string::npos)
+				{
+					externalSourceName = boost::trim_copy(externalSourcePath.substr(0, remappingPos));
+					externalSourcePath = boost::trim_copy(externalSourcePath.substr(remappingPos + 1));
+				}
+
+				string externalSourceContent;
+				fs::path parent_path(m_filename);
+				parent_path = parent_path.normalize().remove_filename();
+
+				fs::path path = parent_path / fs::path(externalSourcePath);
+
+				if (fs::exists(path))
+					externalSourceContent = util::readFileAsString(path.string());
+				else
+					BOOST_THROW_EXCEPTION(runtime_error(string("External Source '"+ externalSourcePath +"' not found.")));
+
+				if (!externalSourceName.empty())
+				{
+					ErrorList errorList;
+					ErrorReporter errorReporter(errorList);
+					Parser parser(errorReporter, langutil::EVMVersion{});
+					shared_ptr<Scanner> scanner = make_shared<Scanner>(CharStream(externalSourceContent, externalSourceName));
+					ASTPointer<SourceUnit> sourceUnit = parser.parse(scanner);
+					if (sourceUnit)
+						for (auto const& node: sourceUnit->nodes())
+							if (auto import = dynamic_cast<ImportDirective const*>(node.get()))
+							{
+								fs::path parent(externalSourcePath);
+								parent = parent.parent_path();
+								string importedSourceContent = util::readFileAsString((parent_path / parent / import->path()).string());
+								sources[parent.string() + "/" + import->path()] = importedSourceContent;
+								sources[import->path()] = importedSourceContent;
+							}
+
+					sources[externalSourceName] = externalSourceContent;
+				}
 			}
 			else
 				currentSource += line + "\n";
