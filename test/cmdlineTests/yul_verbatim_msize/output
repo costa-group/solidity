@@ -1,0 +1,26 @@
+
+======= yul_verbatim_msize/input.yul (EVM) =======
+
+Pretty printed source:
+object "object" {
+    code {
+        {
+            verbatim_0i_0o("")
+            sstore(0, 2)
+        }
+    }
+}
+
+
+Binary representation:
+6002600055
+
+Text representation:
+    /* "yul_verbatim_msize/input.yul":137:155   */
+  verbatimbytecode_
+    /* "yul_verbatim_msize/input.yul":170:171   */
+  0x02
+    /* "yul_verbatim_msize/input.yul":167:168   */
+  0x00
+    /* "yul_verbatim_msize/input.yul":160:172   */
+  sstore
