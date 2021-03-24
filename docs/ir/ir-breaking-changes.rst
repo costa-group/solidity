@@ -91,7 +91,7 @@ This causes differences in some contracts, for example:
 Previously, ``y`` would be set to 0. This is due to the fact that we would first initialize state variables: First, ``x`` is set to 0, and when initializing ``y``, ``f()`` would return 0 causing ``y`` to be 0 as well.
 With the new rules, ``y`` will be set to 42. We first initialize ``x`` to 0, then call A's constructor which sets ``x`` to 42. Finally, when initializing ``y``, ``f()`` returns 42 causing ``y`` to be 42.
 
- * Copying `bytes` arrays from memory to storage is implemented in a different way. The old code generator always copies full words, while the new one cuts the byte array after its end. The old behaviour can lead to dirty data being copied after the end of the array (but still in the same storage slot).
+ * Copying ``bytes`` arrays from memory to storage is implemented in a different way. The old code generator always copies full words, while the new one cuts the byte array after its end. The old behaviour can lead to dirty data being copied after the end of the array (but still in the same storage slot).
 This causes differences in some contracts, for example:
 ::
      // SPDX-License-Identifier: GPL-3.0
@@ -112,8 +112,48 @@ This causes differences in some contracts, for example:
          }
      }
 
-Previously `f()` would return `0x6465616462656566313564656164000000000000000000000000000000000010` (it has correct length, and correct first 8 elements, but than it contains dirty data which was set via assembly).
-Now it is returning `0x6465616462656566000000000000000000000000000000000000000000000010` (it has correct length, and correct elements, but doesn't contain dirty data).
+Previously ``f()`` would return ``0x6465616462656566313564656164000000000000000000000000000000000010`` (it has correct length, and correct first 8 elements, but than it contains dirty data which was set via assembly).
+Now it is returning ``0x6465616462656566000000000000000000000000000000000000000000000010`` (it has correct length, and correct elements, but doesn't contain dirty data).
+
+
+* For the old code generator, the evaluation order of expressions is unspecified.
+  For the new code generator, we try to evaluate in source order (left to right), but do not guarantee it.
+  This can lead to semantic differences.
+
+For example:
+
+::
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity >0.8.0;
+    contract C {
+        function preincr_u8(uint8 a) public pure returns (uint8) {
+            return ++a + a;
+        }
+    }
+
+The function ``preincr_u8(1)`` returns the following values:
+- Old code generator: 3 (``1 + 2``) but the return value is unspecified in general
+- New code generator: 4 (``2 + 2``) but the return value is not guaranteed
+
+This behavior also true for function argument expressions.
+
+For example:
+
+::
+     // SPDX-License-Identifier: GPL-3.0
+     pragma solidity >0.8.0;
+     contract C {
+         function identity(uint8 a) public pure returns (uint8) {
+             return a;
+         }
+         function g(uint8 b) public pure returns (uint8) {
+             return identity(++b + b);
+         }
+     }
+
+The function ``g(1)`` returns the following values:
+- Old code generator: 3 (``1 + 2``) but the return value is unspecified in general
+- New code generator: 4 (``2 + 2``) but the return value is not guaranteed
 
 
 Internals
@@ -133,3 +173,34 @@ The ID ``0`` is reserved for uninitialized function pointers which then cause a 
 
 In the old code generator, internal function pointers are initialized with a special function that always causes a panic.
 This causes a storage write at construction time for internal function pointers in storage.
+
+Clean up
+--------
+
+.. index:: cleanup, dirty bits
+
+The old code generator only performs cleanup before an operation that could be affected by the the values of the dirty bits.
+The new code generator performs cleanup after any operation that can result in dirty bits.
+
+For example:
+::
+     // SPDX-License-Identifier: GPL-3.0
+     pragma solidity >0.8.0;
+     contract C {
+         function f(uint8 a) public returns(uint r1, uint r2)
+         {
+             a = ~a;
+             assembly {
+                 r1 := a
+             }
+             r2 = a;
+         }
+     }
+
+The function ``f(1)`` returns the following values:
+- Old code generator: (``fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe``, ``00000000000000000000000000000000000000000000000000000000000000fe``)
+- New code generator: (``00000000000000000000000000000000000000000000000000000000000000fe``, ``00000000000000000000000000000000000000000000000000000000000000fe``)
+
+Note that, unlike the new code generator, the old code generator does not perform a cleanup after the bit-not assignment (``a = ~a``).
+This results in different values being assigned (within the inline assembly block) to return value ``r1`` between the old and new code generators.
+However, both code generators perform a cleanup before the new value of ``a`` is assigned to ``r2``.
