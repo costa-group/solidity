@@ -16,6 +16,13 @@ EXCLUDE_FILES=(
     "test/scripts/fixtures/smt_contract_with_cr_newlines.sol"
     "test/scripts/fixtures/smt_contract_with_mixed_newlines.sol"
 )
+
+# Also exclude files that are placed within a directory,
+# where its name is starting with '_' (e.g. for external sources used in semantic tests).
+for EXTERNAL_SOURCE in $(find test/libsolidity/semanticTests | grep "/_")
+do
+  EXCLUDE_FILES+=( "${EXTERNAL_SOURCE}" )
+done
 EXCLUDE_FILES_JOINED=$(printf "%s\|" "${EXCLUDE_FILES[@]}")
 EXCLUDE_FILES_JOINED=${EXCLUDE_FILES_JOINED%??}
 
@@ -52,7 +59,7 @@ FORMATERROR=$(
     preparedGrep "^ [^*]|[^*] 	|	 [^*]" # uses spaces for indentation or mixes spaces and tabs
     preparedGrep "[a-zA-Z0-9_]\s*[&][a-zA-Z_]" | grep -E -v "return [&]" # right-aligned reference ampersand (needs to exclude return)
     # right-aligned reference pointer star (needs to exclude return and comments)
-    preparedGrep "[a-zA-Z0-9_]\s*[*][a-zA-Z_]" | grep -E -v -e "return [*]" -e "^* [*]" -e "^*//.*"
+    preparedGrep "[a-zA-Z0-9_]\s*[*][a-zA-Z_]" | grep -E -v -e "return [*]" -e "^.* [*]" -e "^.*//.*"
 ) | grep -E -v -e "^[a-zA-Z\./]*:[0-9]*:\s*\/(\/|\*)" -e "^test/" || true
 )
 
