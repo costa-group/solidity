@@ -132,7 +132,7 @@ private:
 	/// @returns number of variables that are in scope
 	unsigned numVarsInScope();
 
-	std::string createHex(std::string const& _hexBytes);
+//	std::string createHex(std::string const& _hexBytes);
 
 	/// Returns a new variable name.
 	std::string newVarName()
@@ -142,7 +142,7 @@ private:
 
 	/// Accepts an arbitrary string, removes all characters that are neither
 	/// alphabets nor digits from it and returns the said string.
-	static std::string createAlphaNum(std::string const& _strBytes);
+//	static std::string createAlphaNum(std::string const& _strBytes);
 
 	enum class NumFunctionReturns
 	{
@@ -293,7 +293,7 @@ private:
 	///		index = (m_inputSize * m_inputSize + counter) % dictionarySize
 	/// where m_inputSize is the size of the protobuf input and
 	/// dictionarySize is the total number of entries in the dictionary.
-	std::string dictionaryToken(util::HexPrefix _p = util::HexPrefix::Add);
+	std::string dictionaryToken();
 
 	/// Returns an EVMVersion object corresponding to the protobuf
 	/// enum of type Program_Version
