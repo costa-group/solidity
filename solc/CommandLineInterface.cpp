@@ -869,7 +869,7 @@ General Information)").c_str(),
 			g_strEVMVersion.c_str(),
 			po::value<string>()->value_name("version"),
 			"Select desired EVM version. Either homestead, tangerineWhistle, spuriousDragon, "
-			"byzantium, constantinople, petersburg, istanbul (default) or berlin."
+			"byzantium, constantinople, petersburg, istanbul or berlin (default)."
 		)
 		(
 			g_strExperimentalViaIR.c_str(),
