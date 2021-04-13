@@ -50,6 +50,19 @@ CommonSubexpressionEliminator::CommonSubexpressionEliminator(
 ):
 	DataFlowAnalyzer(_dialect, std::move(_functionSideEffects))
 {
+	m_returnVariables.push({});
+}
+
+void CommonSubexpressionEliminator::operator()(FunctionDefinition& _fun)
+{
+	set<YulString> returnVariables;
+	for (auto const& v: _fun.returnVariables)
+		returnVariables.insert(v.name);
+	m_returnVariables.push(move(returnVariables));
+
+	DataFlowAnalyzer::operator()(_fun);
+
+	m_returnVariables.pop();
 }
 
 void CommonSubexpressionEliminator::visit(Expression& _e)
@@ -82,10 +95,9 @@ void CommonSubexpressionEliminator::visit(Expression& _e)
 	if (descend)
 		DataFlowAnalyzer::visit(_e);
 
-	if (holds_alternative<Identifier>(_e))
+	if (Identifier const* identifier = get_if<Identifier>(&_e))
 	{
-		Identifier& identifier = std::get<Identifier>(_e);
-		YulString name = identifier.name;
+		YulString name = identifier->name;
 		if (m_value.count(name))
 		{
 			assertThrow(m_value.at(name).value, OptimizerException, "");
@@ -96,10 +108,17 @@ void CommonSubexpressionEliminator::visit(Expression& _e)
 	}
 	else
 	{
+		// TODO lifetime?
+		static Literal zero{{}, LiteralKind::Number, "0"_yulstring, {}};
 		// TODO this search is rather inefficient.
 		for (auto const& [variable, value]: m_value)
 		{
 			assertThrow(value.value, OptimizerException, "");
+			if (
+				m_returnVariables.top().count(variable) &&
+				SyntacticallyEqual{}(*value.value, zero)
+			)
+				continue;
 			if (SyntacticallyEqual{}(_e, *value.value) && inScope(variable))
 			{
 				_e = Identifier{locationOf(_e), variable};
