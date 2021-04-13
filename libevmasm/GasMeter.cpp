@@ -73,7 +73,7 @@ GasMeter::GasConsumption GasMeter::estimateMax(AssemblyItem const& _item, bool _
 			))
 				gas = GasCosts::sstoreResetGas; //@todo take refunds into account
 			else
-				gas = GasCosts::sstoreSetGas;
+				gas = GasCosts::sstoreSetGas(m_evmVersion);
 			break;
 		}
 		case Instruction::SLOAD:

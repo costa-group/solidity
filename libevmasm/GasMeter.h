@@ -67,16 +67,29 @@ namespace GasCosts
 	}
 	static unsigned const keccak256Gas = 30;
 	static unsigned const keccak256WordGas = 6;
+	static unsigned const coldSloadCost = 2100;
+	static unsigned const coldAccountAccessCost = 2600;
+	static unsigned const warmStorageReadCost = 100;
 	inline unsigned sloadGas(langutil::EVMVersion _evmVersion)
 	{
-		if (_evmVersion >= langutil::EVMVersion::istanbul())
+		if (_evmVersion >= langutil::EVMVersion::berlin())
+			return coldSloadCost;
+		else if (_evmVersion >= langutil::EVMVersion::istanbul())
 			return 800;
 		else if (_evmVersion >= langutil::EVMVersion::tangerineWhistle())
 			return 200;
 		else
 			return 50;
 	}
-	static unsigned const sstoreSetGas = 20000;
+	inline static unsigned sstoreSetGas(langutil::EVMVersion _evmVersion)
+	{
+		if (_evmVersion >= langutil::EVMVersion::berlin())
+			return 20000 + coldSloadCost;
+		else
+			return 20000;
+	}
+	/// For Berlin, the maximum is SSTORE_RESET_GAS + COLD_SLOAD_COST = 5000
+	/// For previous versions, it's a fixed 5000
 	static unsigned const sstoreResetGas = 5000;
 	static unsigned const sstoreRefundGas = 15000;
 	static unsigned const jumpdestGas = 1;
