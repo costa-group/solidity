@@ -133,4 +133,26 @@ private:
 	std::function<void(void)> m_f;
 };
 
+/// RAII utility class that sets the value of a variable for the current scope and restores it to its old value
+/// during its destructor.
+template<typename V>
+class SetValueForCurrentScope
+{
+public:
+	explicit SetValueForCurrentScope(V& _variable, V&& _value): m_variable(_variable), m_oldValue(std::move(_value))
+	{
+		std::swap(m_variable, m_oldValue);
+	}
+	SetValueForCurrentScope(SetValueForCurrentScope const&) = delete;
+	~SetValueForCurrentScope() { std::swap(m_variable, m_oldValue); }
+	SetValueForCurrentScope& operator=(SetValueForCurrentScope const&) = delete;
+
+private:
+	V& m_variable;
+	V m_oldValue;
+};
+
+template<typename V, typename... Args>
+SetValueForCurrentScope(V, Args...) -> SetValueForCurrentScope<V>;
+
 }
