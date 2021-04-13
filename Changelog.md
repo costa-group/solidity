@@ -8,7 +8,7 @@ Language Features:
  * Assembly / Yul: Allow hex string literals.
  * Possibility to use ``bytes.concat`` with variable number of ``bytes`` and ``bytesNN`` arguments which behaves as a restricted version of `abi.encodePacked` with a more descriptive name.
  * Support custom errors via the ``error`` keyword and introduce the ``revert`` statement.
-
+ * Allowing conversion from ``bytes`` to ``bytes1``/.../``bytes32``.
 
 Compiler Features:
  * Analysis: Properly detect circular references to the bytecode of other contracts across all function calls.

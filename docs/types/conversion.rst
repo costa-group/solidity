@@ -99,6 +99,26 @@ rules explicit::
     uint8 d = uint8(uint16(a)); // d will be 0x34
     uint8 e = uint8(bytes1(a)); // e will be 0x12
 
+``bytes`` arrays and ``bytes`` calldata slices can be converted explicitly to fixed bytes types (``bytes1``/.../``bytes32``).
+In case the array is longer than the target fixed bytes type, a panic will happen.
+If the array is shorter than the target type, it will be padded with zeros at the end.
+
+::
+
+    // SPDX-License-Identifier: GPL-3.0
+    pragma solidity ^0.8.4;
+
+    contract C {
+        bytes s = "abcdefgh";
+        function f(bytes calldata c, bytes memory m) public view returns (bytes16) {
+            require(c.length == 16, "");
+            bytes16 b = bytes16(m);  // if m is longer than 16 this will panic
+            b = bytes16(s);  // padded on the right, so result is "abcdefgh\0\0\0\0\0\0\0\0"
+            b = bytes16(c[:8]);  // also padded with zeros
+            return b;
+        }
+    }
+
 .. _types-conversion-literals:
 
 Conversions between Literals and Elementary Types
